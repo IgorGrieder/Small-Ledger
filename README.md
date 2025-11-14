@@ -1,186 +1,169 @@
-# Ledger vs Account Balance — Explanation & Diagram
+# Ledger Service (Multi-Currency) -- Project Overview
 
-## Short answer
+## 📌 Introduction
 
-- **The ledger is the source of truth.** The canonical balance for any account is the **sum of the ledger entries** for that account (credits increase the account, debits decrease it, depending on your convention).
-- A stored `accounts.balance` column can be kept as a **materialized/derived** optimization for fast reads, but it is not the authoritative record — the ledger entries are.
+This project implements a **minimal, reliable, multi-currency ledger
+service** designed to track monetary movements across accounts.\
+It is intentionally simple, but structured following real accounting
+principles (double-entry), ensuring **auditability**, **correctness**,
+and **immutability**.
 
----
-
-## Why ledger-first?
-
-1. **Auditability:** ledger entries are immutable historical records. You can show an auditor the sequence of entries that produced a balance.
-2. **Correctness:** double-entry accounting (every transaction has equal debits and credits) preserves system-wide invariants (total money conserved unless external settlement occurs).
-3. **Reversals & fixes:** instead of editing history, you post compensating transactions that are visible and auditable.
+The ledger supports: - **USD (US Dollar)** - **BRL (Brazilian Real)**\
+...but the design is general enough to add more currencies later.
 
 ---
 
-## How balance is calculated (formula)
+## 🎯 Goals
 
-Use amounts in minor units (cents) and keep ledger entries immutable.
+The goal of this project is to provide a foundational ledger system
+that:
 
-**Query to compute authoritative balance from the ledger**
-
-```sql
-SELECT
-  account_id,
-  SUM(CASE WHEN side = 'credit' THEN amount ELSE -amount END) AS balance_cents
-FROM ledger_entries
-WHERE account_id = $1
-GROUP BY account_id;
-```
-
-If your `ledger_entries` encode sign differently (e.g., positive for both debits and credits but with a `side`), adapt the CASE accordingly.
-
-**Alternative (using `amount` with sign):**
-If you store signed `amount` (positive for credit, negative for debit):
-
-```sql
-SELECT SUM(amount) AS balance_cents FROM ledger_entries WHERE account_id = $1;
-```
+1.  Records all money movements in an **append-only**, **auditable**
+    format.
+2.  Supports **double-entry accounting**: every transaction affects two
+    or more accounts.
+3.  Correctly manages **multi-currency entries**.
+4.  Calculates account balances from the ledger itself (source of
+    truth).
+5.  Provides clean APIs or functions to post transactions and query
+    balances.
+6.  Ensures that money movements are **atomic**, **consistent**, and
+    **idempotent**.
 
 ---
 
-## When to keep `accounts.balance` (materialized)
+## 🧱 Core Concepts
 
-For small projects, you can keep `accounts.balance` to serve fast reads and APIs, but follow these rules:
+### 1. **Accounts**
 
-- Update `accounts.balance` **within the same DB transaction** that writes the ledger entries. That ensures the materialized balance and entries move together atomically.
-- Periodically (nightly or after a batch of transactions) **reconcile** the materialized balances against the authoritative ledger (`SUM(entries)`), and alert if there's drift.
-- Prefer storing `balance` in minor units (`BIGINT`) and avoid floats.
+An account represents a place where money lives.\
+Examples: - User wallet - System reserve - FX pool - Merchant settlement
+account
 
-**Advantages:** faster reads, simple APIs.
+Each account has: - `id` - `name` - `currency` (USD or BRL) - optional
+metadata
 
-**Disadvantages:** risk of drift if updates fail or bugs exist; more complexity to keep reconciliation tooling.
-
----
-
-## Recommended patterns (practical)
-
-- Use `SELECT ... FOR UPDATE` on affected account rows inside a DB transaction when posting transactions. This prevents concurrent races when updating `accounts.balance`.
-- Keep ledger entries immutable — never update or delete. Reversals are new transactions.
-- Use an `idempotency_keys` table to map client idempotency keys to transaction ids so retries don't duplicate ledger entries.
-- Keep an `outbox` table in the same transaction if you need to publish events — this avoids distributed transaction issues.
+Accounts do **not** store balances directly---balances are derived from
+entries.
 
 ---
 
-## Simple example (Alice → Bob, step-by-step)
+### 2. **Transactions**
 
-1. Alice (A) balance before: 5000 cents (R$50). Bob (B) balance before: 2000 cents (R$20).
-2. Post transfer of 1000 cents from A to B.
-3. In single DB tx: insert `transactions`, insert two `ledger_entries` (debit A 1000, credit B 1000), update `accounts.balance` for A and B accordingly.
-4. After commit, authoritative balances (sum of ledger entries) equal the stored `accounts.balance`.
+A **transaction** is a _logical event_ that groups money movements.
 
----
+Examples: - Transfer from User A → User B - Deposit or withdrawal - FX
+conversion (USD ↔ BRL) - Refund / reversal
 
-## Reconciliation check (simple SQL)
+A transaction includes: - `id` - `description` - `external_id` (for
+idempotency) - `status` - `created_at` - metadata
 
-```sql
--- find accounts where materialized balance differs from sum(entries)
-SELECT a.id,
-       a.balance AS materialized_balance,
-       COALESCE(l.sum_entries, 0) AS ledger_sum
-FROM accounts a
-LEFT JOIN (
-  SELECT account_id, SUM(CASE WHEN side='credit' THEN amount ELSE -amount END) AS sum_entries
-  FROM ledger_entries
-  GROUP BY account_id
-) l ON l.account_id = a.id
-WHERE a.balance <> COALESCE(l.sum_entries, 0);
-```
-
-If this query returns rows, you have drift — investigate cause (failed updates, out-of-sync code paths, bugs).
+A transaction contains **multiple entries**.
 
 ---
 
-## The diagram (draw.io XML)
+tries\*\*
 
-Below is a small draw.io (diagrams.net) XML. To import it:
+Entries are the heart of the ledger --- each row represents a single
+movement of money.
 
-1. Copy everything inside the code fence into a file named `ledger-diagram.drawio` (or `ledger-diagram.xml`).
-2. Open [https://app.diagrams.net/](https://app.diagrams.net/)
-3. File → Import From → Device → select your `ledger-diagram.drawio` file.
+Each entry contains: - `transaction_id` - `account_id` - `amount`
+(positive or negative) - `currency` - timestamp + metadata
 
-```xml
-<?xml version="1.0" encoding="UTF-8"?>
-<mxfile host="app.diagrams.net" modified="2025-10-25T00:00:00.000Z" agent="" etag="" version="20.0.0" type="device">
-  <diagram id="ledger" name="Ledger Flow">
-    <mxGraphModel dx="1280" dy="720" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1">
-      <root>
-        <mxCell id="0"/>
-        <mxCell id="1" parent="0"/>
+**A single transaction must have entries that sum to zero _per
+currency_.**
 
-        <!-- Client -->
-        <mxCell id="client" value="Client / UI / Service" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#1a73e8;" vertex="1" parent="1">
-          <mxGeometry x="50" y="60" width="160" height="60" as="geometry"/>
-        </mxCell>
+Examples:
 
-        <!-- API Gateway -->
-        <mxCell id="api" value="API Gateway / Auth" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#34a853;" vertex="1" parent="1">
-          <mxGeometry x="260" y="60" width="160" height="60" as="geometry"/>
-        </mxCell>
+#### BRL Transfer Example
 
-        <!-- Service -->
-        <mxCell id="service" value="Application Service\n(Validates, Idempotency)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#fbbc05;" vertex="1" parent="1">
-          <mxGeometry x="470" y="60" width="200" height="60" as="geometry"/>
-        </mxCell>
+    transaction: tx_001
 
-        <!-- Ledger Core -->
-        <mxCell id="ledgercore" value="Ledger Core / Accounting Engine\n(creates entries, enforces balance)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#ea4335;" vertex="1" parent="1">
-          <mxGeometry x="740" y="30" width="260" height="100" as="geometry"/>
-        </mxCell>
+    entries:
+    - Account B: +100 BRL
 
-        <!-- DB -->
-        <mxCell id="db" value="Postgres\n(tables: accounts, transactions, ledger_entries, idempotency_keys, outbox)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#5f6368;" vertex="1" parent="1">
-          <mxGeometry x="1050" y="30" width="260" height="120" as="geometry"/>
-        </mxCell>
+#### FX Example (USD → BRL)
 
-        <!-- Outbox -->
-        <mxCell id="outbox" value="Outbox → Event bus" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#9c27b0;" vertex="1" parent="1">
-          <mxGeometry x="1050" y="170" width="160" height="60" as="geometry"/>
-        </mxCell>
+    transaction: tx_fx_01
 
-        <!-- Admin / Auditor -->
-        <mxCell id="admin" value="Admin / Auditor\n(Export / Reconcile)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;" vertex="1" parent="1">
-          <mxGeometry x="50" y="200" width="160" height="60" as="geometry"/>
-        </mxCell>
-
-        <!-- Edges -->
-        <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="client" target="api">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="api" target="service">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="service" target="ledgercore">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="ledgercore" target="db">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="db" target="outbox">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-        <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="db" target="admin">
-          <mxGeometry relative="1" as="geometry"/>
-        </mxCell>
-      </root>
-    </mxGraphModel>
-  </diagram>
-</mxfile>
-```
+    entries:
+    - Debit user USD account
+    - Credit FX-USD pool
+    - Debit FX-BRL pool
+    - Credit user BRL account
+    - Fee entries (optional)
 
 ---
 
-## Final tips about the account `balance` field
+## 🔒 Invariants
 
-- Treat `accounts.balance` as a **cache/optimization**. If you ever suspect it might be stale, re-calculate from the ledger. Keep reconciliation tooling accessible via an admin endpoint or a scheduled job.
-- Always update `accounts.balance` inside the same DB transaction that writes `ledger_entries`. If you do that, `accounts.balance` will be consistent after commit.
-- Keep small handy scripts (or SQL) that can recompute and _fix_ drift for the ops team — but do this with care and audit every manual correction.
+- Ledger is append-only (no deletes, no updates to entries).
+- Each transaction must be **balanced**:
+  - Sum(entries.amount where currency = USD) = 0\
+  - Sum(entries.amount where currency = BRL) = 0
+- Posting a transaction is atomic.
+- Account balances must always match the ledger sum.
 
 ---
 
-If you want, I can also:
+## 📊 Balance Calculation
 
-- Produce a PNG/SVG export of the diagram you can download directly.
-- Generate the minimal SQL and Node.js handler (or a small repo) wired to this architecture.
+Balance = `SUM(entries.amount)` for that account and currency.
+
+For performance, optional optimizations: - Materialized balance table
+updated in the same DB transaction. - Snapshots every N entries.
+
+---
+
+## 🧪 Error Handling & Idempotency
+
+The system SHOULD: - Reject unbalanced transactions - Reject entries
+posted to accounts of mismatched currency - Be idempotent via
+`external_id`
+
+Example: If the client retries a failed HTTP call, the ledger returns
+the same transaction instead of duplicating entries.
+
+---
+
+## 🔁 Reversals
+
+Instead of "undoing" or deleting anything, the system posts a **new
+transaction** with the inverted entries.
+
+Example reversal of a BRL transfer:
+
+    original:  A -100, B +100
+    reversal:  A +100, B -100
+
+---
+
+## 🏗 Future Extensions
+
+- Webhooks on new transactions
+- FX rate engine
+- Scheduled transactions
+- CSV/Excel export
+- Partitioned tables for high volume
+- Cryptographic ledger hashes (blockchain-style immutability)
+
+---
+
+## ✔ Summary
+
+This project implements a robust yet minimal ledger system based on: -
+**Accounts** - **Transactions** - **Entries**
+
+It ensures correct, auditable, multi-currency financial operations and
+forms the foundation for wallets, banking layers, payment systems, and
+financial infrastructure.
+
+---
+
+## 📁 File
+
+This file describes the conceptual and architectural foundation of the
+ledger.\
+You can place it at the root of your project as `README.md`.Account A: -100 BRL -
+
+### 3. \*\*En
