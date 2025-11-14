@@ -18,17 +18,17 @@ The ledger supports: - **USD (US Dollar)** - **BRL (Brazilian Real)**\
 The goal of this project is to provide a foundational ledger system
 that:
 
-1.  Records all money movements in an **append-only**, **auditable**
-    format.
-2.  Supports **double-entry accounting**: every transaction affects two
-    or more accounts.
-3.  Correctly manages **multi-currency entries**.
-4.  Calculates account balances from the ledger itself (source of
-    truth).
-5.  Provides clean APIs or functions to post transactions and query
-    balances.
-6.  Ensures that money movements are **atomic**, **consistent**, and
-    **idempotent**.
+1. Records all money movements in an **append-only**, **auditable**
+   format.
+2. Supports **double-entry accounting**: every transaction affects two
+   or more accounts.
+3. Correctly manages **multi-currency entries**.
+4. Calculates account balances from the ledger itself (source of
+   truth).
+5. Provides clean APIs or functions to post transactions and query
+   balances.
+6. Ensures that money movements are **atomic**, **consistent**, and
+   **idempotent**.
 
 ---
 
