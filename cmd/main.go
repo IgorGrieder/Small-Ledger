@@ -24,4 +24,5 @@ func main() {
 
 	ledgerService := application.NewLedgerService(repo)
 
+	StartServer(ledgerService, cfg)
 }

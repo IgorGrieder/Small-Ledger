@@ -1,4 +1,4 @@
-package handlers
+package main
 
 import (
 	"fmt"
@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/IgorGrieder/Small-Ledger/cmd/handlers"
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
 )
@@ -13,7 +14,7 @@ import (
 func StartServer(ledger *application.LedgerService, cfg *cfg.Config) {
 	mux := http.NewServeMux()
 
-	mux.HandleFunc("POST /transaction", transactionHandler)
+	mux.HandleFunc("POST /transaction", handlers.TransactionHandler)
 
 	srv := &http.Server{Addr: fmt.Sprintf(":%d", cfg.PORT), Handler: mux}
 

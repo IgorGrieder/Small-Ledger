@@ -13,7 +13,7 @@ type transactionRequest struct {
 	Value    string `json:"value"`
 }
 
-func transactionHandler(w http.ResponseWriter, r *http.Request) {
+func TransactionHandler(w http.ResponseWriter, r *http.Request) {
 	var request transactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		RespondError(w, http.StatusBadRequest, fmt.Sprintf("error decoding request json %v", request))
