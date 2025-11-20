@@ -4,7 +4,9 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/IgorGrieder/Small-Ledger/internal/application"
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
+	"github.com/IgorGrieder/Small-Ledger/internal/repo"
 )
 
 func main() {
@@ -17,6 +19,10 @@ func main() {
 	// ENVs
 	cfg := cfg.NewConfig()
 
-	// Database connections
+	// Redis and Pg
+	redis := repo.SetupRedis(cfg)
+	repo := repo.SetupPg()
+
+	ledgerService := application.NewLedgerService(repo)
 
 }
