@@ -10,6 +10,6 @@ func NewLedgerService(r repo.Querier) *LedgerService {
 	return &LedgerService{repository: r}
 }
 
-func (l *LedgerService) InsertTransaction() {
-
+func (l *LedgerService) InsertTransaction() error {
+	return nil
 }
