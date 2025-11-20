@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
+	"github.com/IgorGrieder/Small-Ledger/internal/domain"
+	"github.com/google/uuid"
 )
 
 type LedgerHandler struct {
@@ -28,9 +30,18 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	err = h.ledgerService.InsertTransaction()
+	transaction := &domain.Transaction{
+		From:          request.From,
+		To:            request.To,
+		Currency:      request.Currency,
+		Value:         request.Value,
+		CorrelationId: uuid.New(),
+	}
+
+	err = h.ledgerService.InsertTransaction(transaction)
 	if err != nil {
 		RespondError(w, http.StatusInternalServerError, "error processing the request, try again")
 	}
+
 	RespondSuccess(w, http.StatusAccepted)
 }
