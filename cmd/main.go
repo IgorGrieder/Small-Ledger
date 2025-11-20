@@ -11,4 +11,11 @@ func main() {
 	slog.SetDefault(logger)
 
 	slog.Info("Starting the program")
+
+	// ENVs
+	cfg := config.NewConfig()
+
+	// Database connections
+	connections := database.StartConns(cfg)
+
 }
