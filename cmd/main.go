@@ -3,6 +3,8 @@ package main
 import (
 	"log/slog"
 	"os"
+
+	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
 )
 
 func main() {
@@ -13,9 +15,8 @@ func main() {
 	slog.Info("Starting the program")
 
 	// ENVs
-	cfg := config.NewConfig()
+	cfg := cfg.NewConfig()
 
 	// Database connections
-	connections := database.StartConns(cfg)
 
 }

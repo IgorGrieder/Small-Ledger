@@ -1,5 +1,13 @@
 # Ledger Service (Multi-Currency) -- Project Overview
 
+## How to run
+
+First, run the migration to create the PostgreSQL structure with goose!
+
+```
+goose -dir ./internal/db/migrations postgres "user=postgres password=none dbname=ledger host=localhost port=5432 sslmode=disable" up
+```
+
 ## 📌 Introduction
 
 This project implements a **minimal, reliable, multi-currency ledger
