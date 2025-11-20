@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
-	"log/slog"
+	"fmt"
 	"net/http"
 )
 
@@ -16,9 +16,9 @@ type transactionRequest struct {
 func transactionHandler(w http.ResponseWriter, r *http.Request) {
 	var request transactionRequest
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		http.Error(w, "error decoding request json", http.StatusBadRequest)
-		slog.Error("error decoding json")
+		RespondError(w, http.StatusBadRequest, fmt.Sprintf("error decoding request json %v", request))
 		return
 	}
 
+	RespondSuccess(w, http.StatusAccepted)
 }
