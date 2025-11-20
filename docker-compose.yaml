@@ -1,0 +1,32 @@
+services:
+  db: 
+    image: postgres:latest 
+    container_name: pg_ledger 
+    environment:
+      POSTGRES_DB: ledger 
+      POSTGRES_USER: postgres 
+      POSTGRES_PASSWORD: none 
+    ports:
+      - "5432:5432" 
+    volumes:
+      - postgres_data_ledger:/var/lib/postgresql 
+    restart: always 
+
+  redis:
+    image: redis:latest
+    container_name: redis_ledger
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - redis_data_ledger:/data
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    
+volumes:
+  redis_data_ledger:
+  postgres_data_ledger:
