@@ -1,8 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
@@ -25,12 +23,12 @@ type transactionRequest struct {
 
 func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Request) {
 	var request transactionRequest
-	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
-		RespondError(w, http.StatusBadRequest, fmt.Sprintf("error decoding request json %v", request))
+	err := DecodeJSON(w, r, &request)
+	if err != nil {
 		return
 	}
 
-	err := h.ledgerService.InsertTransaction()
+	err = h.ledgerService.InsertTransaction()
 	if err != nil {
 		RespondError(w, http.StatusInternalServerError, "error processing the request, try again")
 	}
