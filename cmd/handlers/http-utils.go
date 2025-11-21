@@ -7,6 +7,8 @@ import (
 	"net/http"
 )
 
+const InternalSrvErrMsg string = "error processing the request, try again"
+
 type ErrorResponse struct {
 	Error string `json:"error"`
 }

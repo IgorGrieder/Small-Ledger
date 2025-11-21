@@ -6,6 +6,6 @@ type Transaction struct {
 	From          uuid.UUID
 	To            uuid.UUID
 	Currency      string
-	Value         string
+	Value         int64
 	CorrelationId uuid.UUID
 }

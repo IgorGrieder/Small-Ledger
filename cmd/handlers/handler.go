@@ -21,7 +21,7 @@ type transactionRequest struct {
 	From     uuid.UUID `json:"from"`
 	To       uuid.UUID `json:"to"`
 	Currency string    `json:"currency"`
-	Value    string    `json:"value"`
+	Value    int64     `json:"value"`
 }
 
 func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Request) {
@@ -43,11 +43,11 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 
 		if errors.Is(err, application.ErrNotEnoughFunds) {
-			RespondError(w, http.StatusBadRequest, "not enouth funds to process the transaction")
+			RespondError(w, http.StatusBadRequest, application.ErrNotEnoughFunds.Error())
 			return
 		}
 
-		RespondError(w, http.StatusInternalServerError, "error processing the request, try again")
+		RespondError(w, http.StatusInternalServerError, InternalSrvErrMsg)
 	}
 
 	RespondSuccess(w, http.StatusAccepted)
