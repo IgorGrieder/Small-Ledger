@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
@@ -40,6 +41,12 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 
 	err = h.ledgerService.InsertTransaction(transaction)
 	if err != nil {
+
+		if errors.Is(err, application.ErrNotEnoughFunds) {
+			RespondError(w, http.StatusBadRequest, "not enouth funds to process the transaction")
+			return
+		}
+
 		RespondError(w, http.StatusInternalServerError, "error processing the request, try again")
 	}
 

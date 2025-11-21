@@ -11,11 +11,11 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
-func EncodeJSONResponse(w http.ResponseWriter, status int, data any) {
+func EncodeJsonErrorResponse(w http.ResponseWriter, status int, error ErrorResponse) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 
-	if err := json.NewEncoder(w).Encode(data); err != nil {
+	if err := json.NewEncoder(w).Encode(error); err != nil {
 		slog.Error("failed to encode json response", "error", err)
 	}
 }
@@ -26,7 +26,7 @@ func RespondError(w http.ResponseWriter, status int, message string) {
 		slog.Int("http code", status),
 	)
 
-	EncodeJSONResponse(w, status, ErrorResponse{Error: message})
+	EncodeJsonErrorResponse(w, status, ErrorResponse{Error: message})
 }
 
 func RespondSuccess(w http.ResponseWriter, status int) {
