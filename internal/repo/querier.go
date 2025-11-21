@@ -7,14 +7,14 @@ package repo
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 )
 
 type Querier interface {
 	GetAllAccounts(ctx context.Context) ([]Account, error)
 	GetAllEntries(ctx context.Context) ([]Entry, error)
 	GetAllTransactions(ctx context.Context) ([]Transaction, error)
-	GetUserFunds(ctx context.Context, accountID pgtype.UUID) (int64, error)
+	GetUserFunds(ctx context.Context, accountID uuid.UUID) (int64, error)
 }
 
 var _ Querier = (*Queries)(nil)

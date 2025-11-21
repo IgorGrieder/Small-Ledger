@@ -7,7 +7,6 @@ import (
 
 	"github.com/IgorGrieder/Small-Ledger/internal/domain"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type LedgerService struct {
@@ -21,14 +20,18 @@ func NewLedgerService(r repo.Querier) *LedgerService {
 var ErrNotEnoughFunds error = errors.New("not enough funds to proceed teh transaction")
 
 func (l *LedgerService) InsertTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	err := checkFunds(ctx, transaction)
+	funds, err := checkFunds(ctx, transaction)
+
 	return nil
 }
 
-func (l *LedgerService) checkFunds(ctx context.Context, transaction *domain.Transaction) error {
+func (l *LedgerService) checkFunds(ctx context.Context, transaction *domain.Transaction) (int64, error) {
 	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	funds, err := l.repository.GetUserFunds(ctxQuery, pgtype.UUID(transaction.From))
-	return nil
+	funds, err := l.repository.GetUserFunds(ctxQuery, transaction.From)
+	if err != nil {
+
+	}
+	return funds, err
 }

@@ -8,6 +8,7 @@ import (
 	"database/sql/driver"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -54,7 +55,7 @@ func (ns NullCurrency) Value() (driver.Value, error) {
 }
 
 type Account struct {
-	ID        pgtype.UUID
+	ID        uuid.UUID
 	Name      string
 	Currency  Currency
 	Metadata  []byte
@@ -62,9 +63,9 @@ type Account struct {
 }
 
 type Entry struct {
-	ID            pgtype.UUID
-	TransactionID pgtype.UUID
-	AccountID     pgtype.UUID
+	ID            uuid.UUID
+	TransactionID uuid.UUID
+	AccountID     uuid.UUID
 	Amount        pgtype.Numeric
 	Currency      Currency
 	Metadata      []byte
@@ -72,7 +73,7 @@ type Entry struct {
 }
 
 type Transaction struct {
-	ID          pgtype.UUID
+	ID          uuid.UUID
 	ExternalID  pgtype.Text
 	Description pgtype.Text
 	Status      string

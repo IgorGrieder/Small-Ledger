@@ -8,7 +8,7 @@ package repo
 import (
 	"context"
 
-	"github.com/jackc/pgx/v5/pgtype"
+	"github.com/google/uuid"
 )
 
 const getAllAccounts = `-- name: GetAllAccounts :many
@@ -108,7 +108,7 @@ const getUserFunds = `-- name: GetUserFunds :one
 SELECT SUM(entries.amount) as Funds from entries where account_id = $1
 `
 
-func (q *Queries) GetUserFunds(ctx context.Context, accountID pgtype.UUID) (int64, error) {
+func (q *Queries) GetUserFunds(ctx context.Context, accountID uuid.UUID) (int64, error) {
 	row := q.db.QueryRow(ctx, getUserFunds, accountID)
 	var funds int64
 	err := row.Scan(&funds)
