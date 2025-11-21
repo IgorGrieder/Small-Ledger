@@ -20,9 +20,10 @@ func main() {
 	cfg := cfg.NewConfig()
 
 	// Redis and Pg
-	repo := repo.SetupPg()
+	pgConn := repo.SetupPg()
+	defer pgConn.Close()
 
-	ledgerService := application.NewLedgerService(repo)
+	ledgerService := application.NewLedgerService(pgConn)
 
 	StartServer(ledgerService, cfg)
 }
