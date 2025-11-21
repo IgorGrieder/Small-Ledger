@@ -165,13 +165,3 @@ This project implements a robust yet minimal ledger system based on: -
 It ensures correct, auditable, multi-currency financial operations and
 forms the foundation for wallets, banking layers, payment systems, and
 financial infrastructure.
-
----
-
-## 📁 File
-
-This file describes the conceptual and architectural foundation of the
-ledger.\
-You can place it at the root of your project as `README.md`.Account A: -100 BRL -
-
-### 3. \*\*En
