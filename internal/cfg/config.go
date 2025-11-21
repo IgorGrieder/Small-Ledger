@@ -3,6 +3,8 @@ package cfg
 import (
 	"os"
 	"strconv"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -17,14 +19,16 @@ type Config struct {
 }
 
 func NewConfig() *Config {
-	port := parseInt(getEnv("PORT", "8080"))
-	reddisAddr := getEnv("REDIS_ADDR", "localhost")
-	reddisPort := parseInt(getEnv("REDIS_PORT", "6379"))
-	host := getEnv("PG_HOST", "localhost")
-	portPG := parseInt(getEnv("PG_PORT", "5432"))
-	user := getEnv("PG_USER", "postgres")
-	dbname := getEnv("PG_DB", "ledger")
-	pgPass := getEnv("PG_PASS", "none")
+	godotenv.Load()
+
+	port := parseInt(getEnv("PORT"))
+	reddisAddr := getEnv("REDIS_ADDR")
+	reddisPort := parseInt(getEnv("REDIS_PORT"))
+	host := getEnv("PG_HOST")
+	portPG := parseInt(getEnv("PG_PORT"))
+	user := getEnv("PG_USER")
+	dbname := getEnv("PG_DB")
+	pgPass := getEnv("PG_PASS")
 
 	return &Config{
 		PORT:       port,
@@ -38,12 +42,8 @@ func NewConfig() *Config {
 	}
 }
 
-func getEnv(key string, fallback string) string {
-	v := os.Getenv(key)
-	if v == "" {
-		return fallback
-	}
-	return v
+func getEnv(key string) string {
+	return os.Getenv(key)
 }
 
 func parseInt(s string) int {

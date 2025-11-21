@@ -39,7 +39,7 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 		CorrelationId: uuid.New(),
 	}
 
-	err = h.ledgerService.InsertTransaction(r.Context(), transaction)
+	err = h.ledgerService.ProcessTransaction(r.Context(), transaction)
 	if err != nil {
 
 		if errors.Is(err, application.ErrNotEnoughFunds) {

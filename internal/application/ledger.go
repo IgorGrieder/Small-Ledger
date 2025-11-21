@@ -24,7 +24,7 @@ func NewLedgerService(store *repo.SQLStore) *LedgerService {
 
 var ErrNotEnoughFunds error = errors.New("not enough funds to proceed teh transaction")
 
-func (l *LedgerService) InsertTransaction(ctx context.Context, transaction *domain.Transaction) error {
+func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
 	// Using the same Tx for the whole processing
 	dbTx := l.store.CreateTx()
 
