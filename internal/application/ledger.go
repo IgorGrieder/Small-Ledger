@@ -9,19 +9,16 @@ import (
 
 	"github.com/IgorGrieder/Small-Ledger/internal/domain"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
 )
 
 type LedgerService struct {
-	repository *repo.Queries
-	conn       *pgxpool.Pool
+	store *repo.SQLStore
 }
 
-func NewLedgerService(conn *pgxpool.Pool) *LedgerService {
-	repo := repo.New(conn)
-
-	return &LedgerService{repository: repo,
-		conn: conn,
+func NewLedgerService(store *repo.SQLStore) *LedgerService {
+	return &LedgerService{
+		store: store,
 	}
 }
 
@@ -44,21 +41,20 @@ func (l *LedgerService) checkFunds(ctx context.Context, transaction *domain.Tran
 	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	tx, err := l.conn.Begin(ctxQuery)
-	if err != nil {
-		return fmt.Errorf("error opening a transaction %v", err)
-	}
+	tx := l.store.WithTx(l.store.CreateTx())
 
-	querier := l.repository.WithTx(tx)
-
-	funds, err := querier.GetUserFunds(ctxQuery, transaction.From)
+	funds, err := tx.GetUserFunds(ctxQuery, transaction.From)
 	if err != nil {
-		return fmt.Errorf("error checking user funds %v", err)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("user not found")
+		}
+
+		return fmt.Errorf("error consulting user to check funds %v", err)
 	}
 
 	if funds < transaction.Value {
 		return ErrNotEnoughFunds
 	}
 
-	return err
+	return nil
 }

@@ -23,7 +23,8 @@ func main() {
 	pgConn := repo.SetupPg()
 	defer pgConn.Close()
 
-	ledgerService := application.NewLedgerService(pgConn)
+	store := repo.NewStore(pgConn)
+	ledgerService := application.NewLedgerService(store)
 
 	StartServer(ledgerService, cfg)
 }
