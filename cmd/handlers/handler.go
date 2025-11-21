@@ -18,10 +18,10 @@ func NewLedgerHandler(l *application.LedgerService) *LedgerHandler {
 }
 
 type transactionRequest struct {
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Currency string `json:"currency"`
-	Value    string `json:"value"`
+	From     uuid.UUID `json:"from"`
+	To       uuid.UUID `json:"to"`
+	Currency string    `json:"currency"`
+	Value    string    `json:"value"`
 }
 
 func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Request) {
@@ -39,7 +39,7 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 		CorrelationId: uuid.New(),
 	}
 
-	err = h.ledgerService.InsertTransaction(transaction)
+	err = h.ledgerService.InsertTransaction(r.Context(), transaction)
 	if err != nil {
 
 		if errors.Is(err, application.ErrNotEnoughFunds) {
