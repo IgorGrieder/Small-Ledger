@@ -8,17 +8,20 @@ import (
 	"time"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/domain"
+	"github.com/IgorGrieder/Small-Ledger/internal/httpclient"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
 	"github.com/jackc/pgx/v5"
 )
 
 type LedgerService struct {
-	store *repo.SQLStore
+	store      *repo.SQLStore
+	httpClient *httpclient.Client
 }
 
-func NewLedgerService(store *repo.SQLStore) *LedgerService {
+func NewLedgerService(store *repo.SQLStore, httpClient *httpclient.Client) *LedgerService {
 	return &LedgerService{
-		store: store,
+		store:      store,
+		httpClient: httpClient,
 	}
 }
 

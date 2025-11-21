@@ -3,9 +3,11 @@ package main
 import (
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
+	"github.com/IgorGrieder/Small-Ledger/internal/httpclient"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
 )
 
@@ -21,10 +23,14 @@ func main() {
 
 	// Redis and Pg
 	pgConn := repo.SetupPg()
+	store := repo.NewStore(pgConn)
+
 	defer pgConn.Close()
 
-	store := repo.NewStore(pgConn)
-	ledgerService := application.NewLedgerService(store)
+	// Http base client
+	httpClient := httpclient.NewClient(60 * time.Second)
+
+	ledgerService := application.NewLedgerService(store, httpClient)
 
 	StartServer(ledgerService, cfg)
 }
