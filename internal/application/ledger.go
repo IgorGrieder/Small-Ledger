@@ -25,7 +25,10 @@ func NewLedgerService(store *repo.SQLStore) *LedgerService {
 var ErrNotEnoughFunds error = errors.New("not enough funds to proceed teh transaction")
 
 func (l *LedgerService) InsertTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	err := l.checkFunds(ctx, transaction)
+	// Using the same Tx for the whole processing
+	dbTx := l.store.CreateTx()
+
+	err := l.checkFunds(ctx, dbTx, transaction)
 	if err != nil {
 		slog.Error("error checking user funds",
 			slog.String("error", err.Error()),
@@ -37,16 +40,17 @@ func (l *LedgerService) InsertTransaction(ctx context.Context, transaction *doma
 	return nil
 }
 
-func (l *LedgerService) checkFunds(ctx context.Context, transaction *domain.Transaction) error {
+func (l *LedgerService) checkFunds(ctx context.Context, dbTx pgx.Tx, transaction *domain.Transaction) error {
 	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	tx := l.store.WithTx(l.store.CreateTx())
+	tx := l.store.WithTx(dbTx)
 
 	funds, err := tx.GetUserFunds(ctxQuery, transaction.From)
 	if err != nil {
+
 		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("user not found")
+			return fmt.Errorf("user not found %v", err)
 		}
 
 		return fmt.Errorf("error consulting user to check funds %v", err)
