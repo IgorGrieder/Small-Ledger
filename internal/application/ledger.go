@@ -42,6 +42,15 @@ func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpcli
 }
 
 func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
+	err := l.checkCurrency(ctx, transaction)
+	if err != nil {
+		slog.Error("error checking currency",
+			slog.String("error", err.Error()),
+		)
+
+		return err
+	}
+
 	tx, err := l.store.CreateTx(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to begin transaction: %w", err)
@@ -56,11 +65,6 @@ func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *dom
 			slog.String("error", err.Error()),
 		)
 
-		return err
-	}
-
-	err = l.checkCurrency(ctx, transaction)
-	if err != nil {
 		return err
 	}
 
@@ -89,12 +93,9 @@ func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, t
 	return nil
 }
 
-func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) error {
+func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) (conversionRates, error) {
+	var response CurrencyResponse
 	requests := []httpclient.ConcurrentRequest{
-		{
-			URL:    l.cfg.CURRENCY_URL + transaction.Currency,
-			Method: http.MethodGet,
-		},
 		{
 			URL:    l.cfg.CURRENCY_URL + transaction.Currency,
 			Method: http.MethodGet,
@@ -103,20 +104,18 @@ func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.T
 
 	for result := range l.httpClient.FetchConcurrent(ctx, requests) {
 		if result.Error != nil {
-			return fmt.Errorf("request failed: error while checking currency %v", result.Error)
+			return conversionRates{}, fmt.Errorf("request failed: error while checking currency %v", result.Error)
 		}
 
 		if result.Response.StatusCode != http.StatusOK {
-			return fmt.Errorf("request failed with status %d", result.Response.StatusCode)
+			return conversionRates{}, fmt.Errorf("request failed with status %d", result.Response.StatusCode)
 		}
 		defer result.Response.Body.Close()
 
-		var response CurrencyResponse
 		if err := httputils.DecodeJSONRaw(result.Response.Body, response); err != nil {
-			return fmt.Errorf("request failed: desserializing json")
+			return conversionRates{}, fmt.Errorf("request failed: desserializing json")
 		}
-
 	}
 
-	return nil
+	return response.ConversionRates, nil
 }
