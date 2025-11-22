@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 	"time"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
@@ -78,19 +77,24 @@ func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.T
 	ctxHttp, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	urls := []string{l.cfg.CURRENCY_URL, l.cfg.CURRENCY_URL}
-	ch1 := make(chan httpclient.HTTPResponse)
-	ch2 := make(chan httpclient.HTTPResponse)
-	emptyMap := make(map[string]map[string]string)
-	urlsMap := make(map[string]chan httpclient.HTTPResponse)
-	urlsMap[urls[0]] = ch1
-	urlsMap[urls[1]] = ch2
+	requests := []httpclient.ConcurrentRequest{
+		{
+			URL:    l.cfg.CURRENCY_URL,
+			Method: http.MethodGet,
+		},
+		{
+			URL:    l.cfg.CURRENCY_URL,
+			Method: http.MethodGet,
+		},
+	}
 
-	var wg sync.WaitGroup
+	for result := range l.httpClient.FetchConcurrent(ctxHttp, requests) {
+		if result.Error != nil {
+			continue
+		}
+		defer result.Response.Body.Close()
 
-	l.httpClient.FetchConcurrentUrls(ctxHttp, &wg, urlsMap, http.MethodGet, emptyMap, emptyMap)
-
-	wg.Wait()
+	}
 
 	return nil
 }

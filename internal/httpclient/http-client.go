@@ -17,6 +17,15 @@ type HTTPResponse struct {
 	Error    error
 }
 
+// ConcurrentRequest defines the parameters for a single concurrent call
+type ConcurrentRequest struct {
+	URL         string
+	Method      string
+	QueryParams map[string]string
+	Headers     map[string]string
+	Body        any
+}
+
 type Client struct {
 	client *http.Client
 }
@@ -76,31 +85,38 @@ func (c *Client) Post(ctx context.Context, url string, body any, headers map[str
 	return c.client.Do(req)
 }
 
-func (c *Client) FetchConcurrentUrls(ctx context.Context, wg *sync.WaitGroup, urls map[string]chan HTTPResponse, method string, headers map[string]map[string]string, queryParams map[string]map[string]string) {
-	for targetURL, ch := range urls {
+func (c *Client) FetchConcurrent(ctx context.Context, requests []ConcurrentRequest) <-chan HTTPResponse {
+	results := make(chan HTTPResponse, len(requests))
+	var wg sync.WaitGroup
+
+	for _, req := range requests {
 		wg.Add(1)
-
-		go func(u string, outCh chan HTTPResponse) {
+		go func(r ConcurrentRequest) {
 			defer wg.Done()
-			defer close(outCh)
-
 			var resp *http.Response
 			var err error
 
-			switch method {
+			switch r.Method {
 			case http.MethodGet:
-				resp, err = c.Get(ctx, u, queryParams[targetURL], headers[targetURL])
+				resp, err = c.Get(ctx, r.URL, r.QueryParams, r.Headers)
 			case http.MethodPost:
-				resp, err = c.Post(ctx, u, queryParams[targetURL], headers[targetURL])
+				resp, err = c.Post(ctx, r.URL, r.Body, r.Headers)
 			default:
-				return
+				resp, err = nil, http.ErrNotSupported
 			}
 
-			outCh <- HTTPResponse{
-				URL:      u,
+			results <- HTTPResponse{
+				URL:      r.URL,
 				Response: resp,
 				Error:    err,
 			}
-		}(targetURL, ch)
+		}(req)
 	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	return results
 }
