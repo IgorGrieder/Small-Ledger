@@ -42,10 +42,15 @@ func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpcli
 }
 
 func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	// Using the same Tx for the whole processing
-	dbTx := l.store.CreateTx()
+	tx, err := l.store.CreateTx(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback(ctx)
 
-	err := l.checkFunds(ctx, dbTx, transaction)
+	qtx := l.store.WithTx(tx)
+
+	err = l.checkFunds(ctx, qtx, transaction)
 	if err != nil {
 		slog.Error("error checking user funds",
 			slog.String("error", err.Error()),
@@ -55,18 +60,19 @@ func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *dom
 	}
 
 	err = l.checkCurrency(ctx, transaction)
+	if err != nil {
+		return err
+	}
 
-	return nil
+	return tx.Commit(ctx)
 }
 
 // Usuario pode quere transferir BRL para sambley
-func (l *LedgerService) checkFunds(ctx context.Context, dbTx pgx.Tx, transaction *domain.Transaction) error {
+func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, transaction *domain.Transaction) error {
 	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
 
-	tx := l.store.WithTx(dbTx)
-
-	funds, err := tx.GetUserFunds(ctxQuery, transaction.From)
+	funds, err := queries.GetUserFunds(ctxQuery, transaction.From)
 	if err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
