@@ -40,9 +40,12 @@ func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *dom
 		return err
 	}
 
+	err = l.checkCurrency(ctx, transaction)
+
 	return nil
 }
 
+// Usuario pode quere transferir BRL para sambley
 func (l *LedgerService) checkFunds(ctx context.Context, dbTx pgx.Tx, transaction *domain.Transaction) error {
 	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
@@ -62,6 +65,13 @@ func (l *LedgerService) checkFunds(ctx context.Context, dbTx pgx.Tx, transaction
 	if funds < transaction.Value {
 		return ErrNotEnoughFunds
 	}
+
+	return nil
+}
+
+func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) error {
+	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
 
 	return nil
 }

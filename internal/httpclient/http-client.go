@@ -7,8 +7,15 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 )
+
+type HTTPResponse struct {
+	URL      string
+	Response *http.Response
+	Error    error
+}
 
 type Client struct {
 	client *http.Client
@@ -67,4 +74,33 @@ func (c *Client) Post(ctx context.Context, url string, body any, headers map[str
 	}
 
 	return c.client.Do(req)
+}
+
+func (c *Client) FetchConcurrentUrls(ctx context.Context, wg *sync.WaitGroup, urls map[string]chan HTTPResponse, method string, headers map[string]string, queryParams map[string]string) {
+	for targetURL, ch := range urls {
+		wg.Add(1)
+
+		go func(u string, outCh chan HTTPResponse) {
+			defer wg.Done()
+			defer close(outCh)
+
+			var resp *http.Response
+			var err error
+
+			switch method {
+			case http.MethodGet:
+				resp, err = c.Get(ctx, u, queryParams, headers)
+			case http.MethodPost:
+				resp, err = c.Post(ctx, u, queryParams, headers)
+			default:
+				return
+			}
+
+			outCh <- HTTPResponse{
+				URL:      u,
+				Response: resp,
+				Error:    err,
+			}
+		}(targetURL, ch)
+	}
 }
