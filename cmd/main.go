@@ -7,7 +7,7 @@ import (
 
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
-	"github.com/IgorGrieder/Small-Ledger/internal/httpclient"
+	"github.com/IgorGrieder/Small-Ledger/internal/http/httpclient"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
 )
 

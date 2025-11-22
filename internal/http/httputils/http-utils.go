@@ -1,8 +1,9 @@
-package handlers
+package httputils
 
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 )
@@ -42,6 +43,14 @@ func RespondSuccess(w http.ResponseWriter, status int) {
 func DecodeJSON(w http.ResponseWriter, r *http.Request, request any) error {
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		RespondError(w, http.StatusBadRequest, fmt.Sprintf("error decoding request json %v", request))
+		return err
+	}
+
+	return nil
+}
+
+func DecodeJSONRaw(source io.Reader, target any) error {
+	if err := json.NewDecoder(source).Decode(&target); err != nil {
 		return err
 	}
 

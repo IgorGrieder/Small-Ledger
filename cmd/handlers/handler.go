@@ -6,6 +6,7 @@ import (
 
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
 	"github.com/IgorGrieder/Small-Ledger/internal/domain"
+	"github.com/IgorGrieder/Small-Ledger/internal/http/httputils"
 	"github.com/google/uuid"
 )
 
@@ -26,7 +27,7 @@ type transactionRequest struct {
 
 func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Request) {
 	var request transactionRequest
-	err := DecodeJSON(w, r, &request)
+	err := httputils.DecodeJSON(w, r, &request)
 	if err != nil {
 		return
 	}
@@ -43,12 +44,12 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 	if err != nil {
 
 		if errors.Is(err, application.ErrNotEnoughFunds) {
-			RespondError(w, http.StatusBadRequest, application.ErrNotEnoughFunds.Error())
+			httputils.RespondError(w, http.StatusBadRequest, application.ErrNotEnoughFunds.Error())
 			return
 		}
 
-		RespondError(w, http.StatusInternalServerError, InternalSrvErrMsg)
+		httputils.RespondError(w, http.StatusInternalServerError, httputils.InternalSrvErrMsg)
 	}
 
-	RespondSuccess(w, http.StatusAccepted)
+	httputils.RespondSuccess(w, http.StatusAccepted)
 }
