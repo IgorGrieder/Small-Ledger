@@ -76,7 +76,7 @@ func (c *Client) Post(ctx context.Context, url string, body any, headers map[str
 	return c.client.Do(req)
 }
 
-func (c *Client) FetchConcurrentUrls(ctx context.Context, wg *sync.WaitGroup, urls map[string]chan HTTPResponse, method string, headers map[string]string, queryParams map[string]string) {
+func (c *Client) FetchConcurrentUrls(ctx context.Context, wg *sync.WaitGroup, urls map[string]chan HTTPResponse, method string, headers map[string]map[string]string, queryParams map[string]map[string]string) {
 	for targetURL, ch := range urls {
 		wg.Add(1)
 
@@ -89,9 +89,9 @@ func (c *Client) FetchConcurrentUrls(ctx context.Context, wg *sync.WaitGroup, ur
 
 			switch method {
 			case http.MethodGet:
-				resp, err = c.Get(ctx, u, queryParams, headers)
+				resp, err = c.Get(ctx, u, queryParams[targetURL], headers[targetURL])
 			case http.MethodPost:
-				resp, err = c.Post(ctx, u, queryParams, headers)
+				resp, err = c.Post(ctx, u, queryParams[targetURL], headers[targetURL])
 			default:
 				return
 			}

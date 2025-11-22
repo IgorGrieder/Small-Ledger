@@ -5,8 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
+	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
 	"github.com/IgorGrieder/Small-Ledger/internal/domain"
 	"github.com/IgorGrieder/Small-Ledger/internal/httpclient"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
@@ -16,12 +18,14 @@ import (
 type LedgerService struct {
 	store      *repo.SQLStore
 	httpClient *httpclient.Client
+	cfg        *cfg.Config
 }
 
-func NewLedgerService(store *repo.SQLStore, httpClient *httpclient.Client) *LedgerService {
+func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpclient.Client) *LedgerService {
 	return &LedgerService{
 		store:      store,
 		httpClient: httpClient,
+		cfg:        cfg,
 	}
 }
 
@@ -70,8 +74,14 @@ func (l *LedgerService) checkFunds(ctx context.Context, dbTx pgx.Tx, transaction
 }
 
 func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) error {
-	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctxHttp, cancel := context.WithTimeout(ctx, 1*time.Second)
 	defer cancel()
+
+	urls := []string{l.cfg.CURRENCY_URL, l.cfg.CURRENCY_URL}
+
+	var wg sync.WaitGroup
+
+	l.httpClient.FetchConcurrentUrls(ctxHttp)
 
 	return nil
 }

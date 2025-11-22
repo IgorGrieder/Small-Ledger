@@ -8,14 +8,15 @@ import (
 )
 
 type Config struct {
-	PORT       int
-	REDIS_ADDR string
-	REDIS_PORT int
-	HOST       string
-	PORT_PG    int
-	USER       string
-	DB_NAME    string
-	PG_PASS    string
+	PORT         int
+	REDIS_ADDR   string
+	REDIS_PORT   int
+	HOST         string
+	PORT_PG      int
+	USER         string
+	DB_NAME      string
+	PG_PASS      string
+	CURRENCY_URL string
 }
 
 func NewConfig() *Config {
@@ -29,16 +30,18 @@ func NewConfig() *Config {
 	user := getEnv("PG_USER")
 	dbname := getEnv("PG_DB")
 	pgPass := getEnv("PG_PASS")
+	currencyUrl := getEnv("CURRENCY_URL")
 
 	return &Config{
-		PORT:       port,
-		REDIS_ADDR: reddisAddr,
-		REDIS_PORT: reddisPort,
-		HOST:       host,
-		PORT_PG:    portPG,
-		USER:       user,
-		DB_NAME:    dbname,
-		PG_PASS:    pgPass,
+		PORT:         port,
+		REDIS_ADDR:   reddisAddr,
+		REDIS_PORT:   reddisPort,
+		HOST:         host,
+		PORT_PG:      portPG,
+		USER:         user,
+		DB_NAME:      dbname,
+		PG_PASS:      pgPass,
+		CURRENCY_URL: currencyUrl,
 	}
 }
 

@@ -30,7 +30,7 @@ func main() {
 	// Http base client
 	httpClient := httpclient.NewClient(60 * time.Second)
 
-	ledgerService := application.NewLedgerService(store, httpClient)
+	ledgerService := application.NewLedgerService(cfg, store, httpClient)
 
 	StartServer(ledgerService, cfg)
 }
