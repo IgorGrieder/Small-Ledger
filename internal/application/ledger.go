@@ -42,7 +42,7 @@ func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpcli
 }
 
 func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	err := l.checkCurrency(ctx, transaction)
+	currency, err := l.checkCurrency(ctx, transaction)
 	if err != nil {
 		slog.Error("error checking currency",
 			slog.String("error", err.Error()),

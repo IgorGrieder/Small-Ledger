@@ -64,20 +64,21 @@ func (c *Client) Get(ctx context.Context, baseURL string, queryParams map[string
 
 func (c *Client) Post(ctx context.Context, url string, body any, headers map[string]string) (*http.Response, error) {
 	var bodyReader io.Reader
-	if body != nil {
-		jsonData, err := json.Marshal(body)
-		if err != nil {
-			return nil, err
-		}
-		bodyReader = bytes.NewBuffer(jsonData)
-	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bodyReader)
 	if err != nil {
 		return nil, err
 	}
 
-	req.Header.Set("Content-Type", "application/json")
+	if body != nil {
+		jsonData, err := json.Marshal(body)
+		if err != nil {
+			return nil, err
+		}
+		bodyReader = bytes.NewBuffer(jsonData)
+		req.Header.Set("Content-Type", "application/json")
+	}
+
 	for k, v := range headers {
 		req.Header.Set(k, v)
 	}
