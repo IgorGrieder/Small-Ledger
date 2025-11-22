@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
 	"sync"
 	"time"
 
@@ -78,10 +79,18 @@ func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.T
 	defer cancel()
 
 	urls := []string{l.cfg.CURRENCY_URL, l.cfg.CURRENCY_URL}
+	ch1 := make(chan httpclient.HTTPResponse)
+	ch2 := make(chan httpclient.HTTPResponse)
+	emptyMap := make(map[string]map[string]string)
+	urlsMap := make(map[string]chan httpclient.HTTPResponse)
+	urlsMap[urls[0]] = ch1
+	urlsMap[urls[1]] = ch2
 
 	var wg sync.WaitGroup
 
-	l.httpClient.FetchConcurrentUrls(ctxHttp)
+	l.httpClient.FetchConcurrentUrls(ctxHttp, &wg, urlsMap, http.MethodGet, emptyMap, emptyMap)
+
+	wg.Wait()
 
 	return nil
 }
