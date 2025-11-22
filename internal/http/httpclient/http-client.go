@@ -62,7 +62,7 @@ func (c *Client) Get(ctx context.Context, baseURL string, queryParams map[string
 	return c.client.Do(req)
 }
 
-func (c *Client) Post(ctx context.Context, url string, body any, headers map[string]string) (*http.Response, error) {
+func (c *Client) PostWithJson(ctx context.Context, url string, body any, headers map[string]string) (*http.Response, error) {
 	var bodyReader io.Reader
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bodyReader)
@@ -101,7 +101,7 @@ func (c *Client) FetchConcurrent(ctx context.Context, requests []ConcurrentReque
 			case http.MethodGet:
 				resp, err = c.Get(ctx, r.URL, r.QueryParams, r.Headers)
 			case http.MethodPost:
-				resp, err = c.Post(ctx, r.URL, r.Body, r.Headers)
+				resp, err = c.PostWithJson(ctx, r.URL, r.Body, r.Headers)
 			default:
 				resp, err = nil, http.ErrNotSupported
 			}

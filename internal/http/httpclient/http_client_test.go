@@ -68,7 +68,7 @@ func TestClient_Post(t *testing.T) {
 	headers := map[string]string{"X-Custom-Header": "custom-value"}
 	body := RequestBody{Name: "test-name"}
 
-	resp, err := client.Post(context.Background(), server.URL, body, headers)
+	resp, err := client.PostWithJson(context.Background(), server.URL, body, headers)
 	if err != nil {
 		t.Fatalf("Failed to make POST request: %v", err)
 	}
