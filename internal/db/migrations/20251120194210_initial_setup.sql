@@ -49,6 +49,12 @@ CREATE TRIGGER check_currency_match
 BEFORE INSERT OR UPDATE ON entries
 FOR EACH ROW
 EXECUTE FUNCTION validate_entry_currency();
+
+-- migration_002_create_pools.sql
+INSERT INTO accounts (id, name, currency, metadata) VALUES 
+('00000000-0000-0000-0000-000000000001', 'Liquidity Pool USD', 'USD', '{"type": "system"}'::jsonb),
+('00000000-0000-0000-0000-000000000002', 'Liquidity Pool BRL', 'BRL', '{"type": "system"}'::jsonb);
+
 -- +goose StatementEnd
 
 -- +goose Down
