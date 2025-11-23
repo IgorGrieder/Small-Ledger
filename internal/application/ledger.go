@@ -73,10 +73,29 @@ func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *dom
 
 // Usuario pode quere transferir BRL para sambley
 func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, transaction *domain.Transaction) error {
-	ctxQuery, cancel := context.WithTimeout(ctx, 1*time.Second)
+	ctxQuery, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	funds, err := queries.GetUserFunds(ctxQuery, transaction.From)
+	queriesParallel := []repo.ConcurrentQuery{
+		{
+			Fn: func(ctx context.Context) (any, error) {
+				return l.store.GetUserFunds(ctxQuery, transaction.From)
+			},
+		},
+		{
+			Fn: func(ctx context.Context) (any, error) {
+				return l.store.GetUserFunds(ctxQuery, transaction.To)
+			},
+		},
+	}
+
+	for res := range l.store.QueryConcurrent(ctx, queriesParallel) {
+		if res.Error != nil {
+			// Handle error
+		}
+	}
+
+	fundsFrom, err := queries.GetUserFunds(ctxQuery, transaction.From)
 	if err != nil {
 
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -86,8 +105,18 @@ func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, t
 		return fmt.Errorf("error consulting user to check funds %v", err)
 	}
 
-	if funds < transaction.Value {
+	if fundsFrom < transaction.Value {
 		return ErrNotEnoughFunds
+	}
+
+	fundsTo, err := queries.GetUserFunds(ctxQuery, transaction.To)
+	if err != nil {
+
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("user not found %v", err)
+		}
+
+		return fmt.Errorf("error consulting user to check funds %v", err)
 	}
 
 	return nil

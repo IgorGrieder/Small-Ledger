@@ -15,8 +15,7 @@ type Store interface {
 }
 
 type ConcurrentQuery struct {
-	Name string
-	Fn   func(context.Context) (any, error)
+	Fn func(context.Context) (any, error)
 }
 
 type QueryResponse struct {
@@ -51,7 +50,6 @@ func (s *SQLStore) QueryConcurrent(ctx context.Context, queries []ConcurrentQuer
 			defer wg.Done()
 			res, err := query.Fn(ctx)
 			results <- QueryResponse{
-				Name:   query.Name,
 				Result: res,
 				Error:  err,
 			}
