@@ -18,7 +18,7 @@ func StartServer(ledger *application.LedgerService, cfg *cfg.Config) {
 	mux.HandleFunc("POST /transaction", ledgerHandler.TransactionHandler)
 	mux.HandleFunc("GET /accounts", ledgerHandler.GetAccountsHandler)
 
-	srv := &http.Server{Addr: fmt.Sprintf("localhost:%d", cfg.APPLICATION_PORT), Handler: mux}
+	srv := &http.Server{Addr: fmt.Sprintf(":%d", cfg.APPLICATION_PORT), Handler: mux}
 
 	if err := srv.ListenAndServe(); err != nil {
 		log.Println("Server stopped")
