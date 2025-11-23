@@ -42,7 +42,7 @@ func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpcli
 }
 
 func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	currency, err := l.checkCurrency(ctx, transaction)
+	_, err := l.checkCurrency(ctx, transaction)
 	if err != nil {
 		slog.Error("error checking currency",
 			slog.String("error", err.Error()),
@@ -78,52 +78,54 @@ func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, t
 
 	queriesParallel := []repo.ConcurrentQuery{
 		{
+			Name: "From",
 			Fn: func(ctx context.Context) (any, error) {
 				return l.store.GetUserFunds(ctxQuery, transaction.From)
 			},
 		},
 		{
+			Name: "To",
 			Fn: func(ctx context.Context) (any, error) {
 				return l.store.GetUserFunds(ctxQuery, transaction.To)
 			},
 		},
 	}
 
+	var fundsFrom int64
+	// var fundsTo int64
+
 	for res := range l.store.QueryConcurrent(ctx, queriesParallel) {
 		if res.Error != nil {
-			// Handle error
-		}
-	}
-
-	fundsFrom, err := queries.GetUserFunds(ctxQuery, transaction.From)
-	if err != nil {
-
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("user not found %v", err)
+			if errors.Is(res.Error, pgx.ErrNoRows) {
+				return fmt.Errorf("user not found for %s: %w", res.Name, res.Error)
+			}
+			return fmt.Errorf("error consulting user %s to check funds: %w", res.Name, res.Error)
 		}
 
-		return fmt.Errorf("error consulting user to check funds %v", err)
+		val, ok := res.Result.(int64)
+		if !ok {
+			return fmt.Errorf("unexpected result type for %s", res.Name)
+		}
+
+		if res.Name == "From" {
+			fundsFrom = val
+		} else if res.Name == "To" {
+			// fundsTo = val
+		}
 	}
 
 	if fundsFrom < transaction.Value {
 		return ErrNotEnoughFunds
 	}
 
-	fundsTo, err := queries.GetUserFunds(ctxQuery, transaction.To)
-	if err != nil {
-
-		if errors.Is(err, pgx.ErrNoRows) {
-			return fmt.Errorf("user not found %v", err)
-		}
-
-		return fmt.Errorf("error consulting user to check funds %v", err)
-	}
+	// fundsTo is fetched but not strictly used for a check here, keeping it as per original logic intent (maybe for future use or just existence check)
 
 	return nil
 }
 
-func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) (conversionRates, error) {
+func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) ([]conversionRates, error) {
 	var response CurrencyResponse
+	var rates []conversionRates
 	requests := []httpclient.ConcurrentRequest{
 		{
 			URL:    l.cfg.CURRENCY_URL + transaction.Currency,
@@ -133,18 +135,20 @@ func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.T
 
 	for result := range l.httpClient.FetchConcurrent(ctx, requests) {
 		if result.Error != nil {
-			return conversionRates{}, fmt.Errorf("request failed: error while checking currency %v", result.Error)
+			return nil, fmt.Errorf("request failed: error while checking currency %v", result.Error)
 		}
 
 		if result.Response.StatusCode != http.StatusOK {
-			return conversionRates{}, fmt.Errorf("request failed with status %d", result.Response.StatusCode)
+			return nil, fmt.Errorf("request failed with status %d", result.Response.StatusCode)
 		}
 		defer result.Response.Body.Close()
 
 		if err := httputils.DecodeJSONRaw(result.Response.Body, response); err != nil {
-			return conversionRates{}, fmt.Errorf("request failed: desserializing json")
+			return nil, fmt.Errorf("request failed: desserializing json")
 		}
+
+		rates = append(rates, response.ConversionRates)
 	}
 
-	return response.ConversionRates, nil
+	return rates, nil
 }
