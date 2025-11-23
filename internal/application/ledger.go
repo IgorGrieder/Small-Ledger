@@ -82,7 +82,7 @@ func (l *LedgerService) GetAllAccounts(ctx context.Context) ([]repo.Account, err
 	return l.store.GetAllAccounts(ctx)
 }
 
-func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, transaction *domain.Transaction) error {
+func (l *LedgerService) checkFunds(ctx context.Context, tx *repo.Queries, transaction *domain.Transaction) error {
 	ctxQuery, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
@@ -94,7 +94,7 @@ func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, t
 	group, ctxGroup := errgroup.WithContext(ctxQuery)
 
 	fetchFunds := func(userID uuid.UUID, label string, dest *int64) error {
-		funds, err := l.store.GetUserFunds(ctxGroup, userID)
+		funds, err := tx.GetUserFunds(ctxGroup, userID)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
 				return fmt.Errorf("user not found for %s=%s: %w", label, userID, err)
