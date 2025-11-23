@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -23,6 +24,7 @@ type LedgerService struct {
 	httpClient *httpclient.Client
 	cfg        *cfg.Config
 	redis      *redis.Client
+	cacheMax   time.Duration
 }
 
 type conversionRates struct {
@@ -42,11 +44,12 @@ func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, redis *redis.Client
 		httpClient: httpClient,
 		cfg:        cfg,
 		redis:      redis,
+		cacheMax:   1 * time.Hour,
 	}
 }
 
 func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	currency, err := l.checkCurrency(ctx, transaction)
+	_, err := l.checkCurrency(ctx, transaction)
 	if err != nil {
 		slog.Error("error checking currency",
 			slog.String("error", err.Error()),
@@ -118,13 +121,34 @@ func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, t
 }
 
 func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) (conversionRates, error) {
+	// 1. Check Cache
+	val, err := l.redis.Get(ctx, transaction.Currency).Result()
+	if err == nil {
+		var cachedRates conversionRates
+		if err := json.Unmarshal([]byte(val), &cachedRates); err == nil {
+			return cachedRates, nil
+		}
+	} else if err != redis.Nil {
+		slog.Error("error getting currency from cache", slog.String("error", err.Error()))
+	}
+
 	response, err := l.httpClient.Get(ctx, l.cfg.CURRENCY_URL+transaction.Currency, nil, nil)
 	if err != nil {
 		return conversionRates{}, fmt.Errorf("error checking currency %v", err)
 	}
 
 	var rates CurrencyResponse
-	httputils.DecodeJSONRaw(response.Body, rates)
+	if err := httputils.DecodeJSONRaw(response.Body, rates); err != nil {
+		return conversionRates{}, fmt.Errorf("error decoding currency response: %w", err)
+	}
+	defer response.Body.Close()
 
-	return conversionRates{USD: rates.ConversionRates.USD, BRL: rates.ConversionRates.BRL}, nil
+	resultRates := conversionRates{USD: rates.ConversionRates.USD, BRL: rates.ConversionRates.BRL}
+	if jsonData, err := json.Marshal(resultRates); err == nil {
+		if err := l.redis.Set(ctx, transaction.Currency, jsonData, l.cacheMax).Err(); err != nil {
+			slog.Error("error setting currency to cache", slog.String("error", err.Error()))
+		}
+	}
+
+	return resultRates, nil
 }
