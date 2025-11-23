@@ -54,3 +54,13 @@ func (h *LedgerHandler) TransactionHandler(w http.ResponseWriter, r *http.Reques
 
 	httputils.RespondSuccess(w, http.StatusAccepted)
 }
+
+func (h *LedgerHandler) GetAccountsHandler(w http.ResponseWriter, r *http.Request) {
+	accounts, err := h.ledgerService.GetAllAccounts(r.Context())
+	if err != nil {
+		httputils.RespondError(w, http.StatusInternalServerError, httputils.InternalSrvErrMsg)
+		return
+	}
+
+	httputils.RespondJSON(w, http.StatusOK, accounts)
+}

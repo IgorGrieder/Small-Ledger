@@ -78,6 +78,10 @@ func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *dom
 	return tx.Commit(ctx)
 }
 
+func (l *LedgerService) GetAllAccounts(ctx context.Context) ([]repo.Account, error) {
+	return l.store.GetAllAccounts(ctx)
+}
+
 func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, transaction *domain.Transaction) error {
 	ctxQuery, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()

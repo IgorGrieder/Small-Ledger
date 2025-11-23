@@ -5,6 +5,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/IgorGrieder/Small-Ledger/cmd/handlers"
 	"github.com/IgorGrieder/Small-Ledger/internal/application"
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
 	"github.com/IgorGrieder/Small-Ledger/internal/http/httpclient"
@@ -34,5 +35,5 @@ func main() {
 
 	ledgerService := application.NewLedgerService(cfg, store, redis, httpClient)
 
-	StartServer(ledgerService, cfg)
+	handlers.StartServer(ledgerService, cfg)
 }

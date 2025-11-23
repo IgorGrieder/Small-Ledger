@@ -40,6 +40,15 @@ func RespondSuccess(w http.ResponseWriter, status int) {
 	w.WriteHeader(status)
 }
 
+func RespondJSON(w http.ResponseWriter, status int, payload any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		slog.Error("failed to encode json response", "error", err)
+	}
+}
+
 func DecodeJSON(w http.ResponseWriter, r *http.Request, request any) error {
 	if err := json.NewDecoder(r.Body).Decode(&request); err != nil {
 		RespondError(w, http.StatusBadRequest, fmt.Sprintf("error decoding request json %v", request))
