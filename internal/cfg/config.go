@@ -22,7 +22,7 @@ type Config struct {
 func NewConfig() *Config {
 	godotenv.Load()
 
-	port := parseInt(getEnv("PORT"))
+	port := parseInt(getEnv("APPLICATION_PORT"))
 	reddisAddr := getEnv("REDIS_ADDR")
 	reddisPort := parseInt(getEnv("REDIS_PORT"))
 	host := getEnv("PG_HOST")
