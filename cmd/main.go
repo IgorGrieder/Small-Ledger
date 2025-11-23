@@ -27,6 +27,7 @@ func main() {
 	store := repo.NewStore(pgConn)
 
 	defer pgConn.Close()
+	defer redis.Close()
 
 	// Http base client
 	httpClient := httpclient.NewClient(60 * time.Second)
