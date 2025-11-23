@@ -97,7 +97,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case errMsg:
 		m.err = msg
 		m.state = stateError
-		return m, tea.Quit
+		return m, nil
 
 	case transactionResultMsg:
 		m.state = stateSuccess
