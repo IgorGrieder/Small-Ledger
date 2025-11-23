@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"sync"
 	"time"
 )
 
@@ -15,15 +14,6 @@ type HTTPResponse struct {
 	URL      string
 	Response *http.Response
 	Error    error
-}
-
-// ConcurrentRequest defines the parameters for a single concurrent call
-type ConcurrentRequest struct {
-	URL         string
-	Method      string
-	QueryParams map[string]string
-	Headers     map[string]string
-	Body        any
 }
 
 type Client struct {
@@ -84,40 +74,4 @@ func (c *Client) PostWithJson(ctx context.Context, url string, body any, headers
 	}
 
 	return c.client.Do(req)
-}
-
-func (c *Client) FetchConcurrent(ctx context.Context, requests []ConcurrentRequest) <-chan HTTPResponse {
-	results := make(chan HTTPResponse, len(requests))
-	var wg sync.WaitGroup
-
-	for _, req := range requests {
-		wg.Add(1)
-		go func(r ConcurrentRequest) {
-			defer wg.Done()
-			var resp *http.Response
-			var err error
-
-			switch r.Method {
-			case http.MethodGet:
-				resp, err = c.Get(ctx, r.URL, r.QueryParams, r.Headers)
-			case http.MethodPost:
-				resp, err = c.PostWithJson(ctx, r.URL, r.Body, r.Headers)
-			default:
-				resp, err = nil, http.ErrNotSupported
-			}
-
-			results <- HTTPResponse{
-				URL:      r.URL,
-				Response: resp,
-				Error:    err,
-			}
-		}(req)
-	}
-
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
-
-	return results
 }

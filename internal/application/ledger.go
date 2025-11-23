@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"time"
 
 	"github.com/IgorGrieder/Small-Ledger/internal/cfg"
@@ -13,7 +12,9 @@ import (
 	"github.com/IgorGrieder/Small-Ledger/internal/http/httpclient"
 	"github.com/IgorGrieder/Small-Ledger/internal/http/httputils"
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"golang.org/x/sync/errgroup"
 )
 
 type LedgerService struct {
@@ -42,7 +43,7 @@ func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpcli
 }
 
 func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *domain.Transaction) error {
-	_, err := l.checkCurrency(ctx, transaction)
+	currency, err := l.checkCurrency(ctx, transaction)
 	if err != nil {
 		slog.Error("error checking currency",
 			slog.String("error", err.Error()),
@@ -71,84 +72,56 @@ func (l *LedgerService) ProcessTransaction(ctx context.Context, transaction *dom
 	return tx.Commit(ctx)
 }
 
-// Usuario pode quere transferir BRL para sambley
 func (l *LedgerService) checkFunds(ctx context.Context, queries *repo.Queries, transaction *domain.Transaction) error {
 	ctxQuery, cancel := context.WithTimeout(ctx, 2*time.Second)
 	defer cancel()
 
-	queriesParallel := []repo.ConcurrentQuery{
-		{
-			Name: "From",
-			Fn: func(ctx context.Context) (any, error) {
-				return l.store.GetUserFunds(ctxQuery, transaction.From)
-			},
-		},
-		{
-			Name: "To",
-			Fn: func(ctx context.Context) (any, error) {
-				return l.store.GetUserFunds(ctxQuery, transaction.To)
-			},
-		},
+	var (
+		fundsFrom int64
+		fundsTo   int64
+	)
+
+	group, ctxGroup := errgroup.WithContext(ctxQuery)
+
+	fetchFunds := func(userID uuid.UUID, label string, dest *int64) error {
+		funds, err := l.store.GetUserFunds(ctxGroup, userID)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return fmt.Errorf("user not found for %s=%s: %w", label, userID, err)
+			}
+			return fmt.Errorf("error consulting user %s=%s: %w", label, userID, err)
+		}
+		*dest = funds
+		return nil
 	}
 
-	var fundsFrom int64
-	// var fundsTo int64
+	group.Go(func() error {
+		return fetchFunds(transaction.From, "From", &fundsFrom)
+	})
 
-	for res := range l.store.QueryConcurrent(ctx, queriesParallel) {
-		if res.Error != nil {
-			if errors.Is(res.Error, pgx.ErrNoRows) {
-				return fmt.Errorf("user not found for %s: %w", res.Name, res.Error)
-			}
-			return fmt.Errorf("error consulting user %s to check funds: %w", res.Name, res.Error)
-		}
+	group.Go(func() error {
+		return fetchFunds(transaction.To, "To", &fundsTo)
+	})
 
-		val, ok := res.Result.(int64)
-		if !ok {
-			return fmt.Errorf("unexpected result type for %s", res.Name)
-		}
-
-		if res.Name == "From" {
-			fundsFrom = val
-		} else if res.Name == "To" {
-			// fundsTo = val
-		}
+	if err := group.Wait(); err != nil {
+		return err
 	}
 
 	if fundsFrom < transaction.Value {
 		return ErrNotEnoughFunds
 	}
 
-	// fundsTo is fetched but not strictly used for a check here, keeping it as per original logic intent (maybe for future use or just existence check)
-
 	return nil
 }
 
-func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) ([]conversionRates, error) {
-	var response CurrencyResponse
-	var rates []conversionRates
-	requests := []httpclient.ConcurrentRequest{
-		{
-			URL:    l.cfg.CURRENCY_URL + transaction.Currency,
-			Method: http.MethodGet,
-		},
+func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) (conversionRates, error) {
+	response, err := l.httpClient.Get(ctx, l.cfg.CURRENCY_URL+transaction.Currency, nil, nil)
+	if err != nil {
+		return conversionRates{}, fmt.Errorf("error checking currency %v", err)
 	}
 
-	for result := range l.httpClient.FetchConcurrent(ctx, requests) {
-		if result.Error != nil {
-			return nil, fmt.Errorf("request failed: error while checking currency %v", result.Error)
-		}
+	var rates CurrencyResponse
+	httputils.DecodeJSONRaw(response.Body, rates)
 
-		if result.Response.StatusCode != http.StatusOK {
-			return nil, fmt.Errorf("request failed with status %d", result.Response.StatusCode)
-		}
-		defer result.Response.Body.Close()
-
-		if err := httputils.DecodeJSONRaw(result.Response.Body, response); err != nil {
-			return nil, fmt.Errorf("request failed: desserializing json")
-		}
-
-		rates = append(rates, response.ConversionRates)
-	}
-
-	return rates, nil
+	return conversionRates{USD: rates.ConversionRates.USD, BRL: rates.ConversionRates.BRL}, nil
 }
