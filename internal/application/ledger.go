@@ -14,6 +14,7 @@ import (
 	"github.com/IgorGrieder/Small-Ledger/internal/repo"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/redis/go-redis/v9"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -21,6 +22,7 @@ type LedgerService struct {
 	store      *repo.SQLStore
 	httpClient *httpclient.Client
 	cfg        *cfg.Config
+	redis      *redis.Client
 }
 
 type conversionRates struct {
@@ -34,11 +36,12 @@ type CurrencyResponse struct {
 
 var ErrNotEnoughFunds error = errors.New("not enough funds to proceed teh transaction")
 
-func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, httpClient *httpclient.Client) *LedgerService {
+func NewLedgerService(cfg *cfg.Config, store *repo.SQLStore, redis *redis.Client, httpClient *httpclient.Client) *LedgerService {
 	return &LedgerService{
 		store:      store,
 		httpClient: httpClient,
 		cfg:        cfg,
+		redis:      redis,
 	}
 }
 

@@ -22,7 +22,8 @@ func main() {
 	cfg := cfg.NewConfig()
 
 	// Redis and Pg
-	pgConn := repo.SetupPg()
+	pgConn := repo.SetupPg(cfg)
+	redis := repo.SetupRedis(cfg)
 	store := repo.NewStore(pgConn)
 
 	defer pgConn.Close()
@@ -30,7 +31,7 @@ func main() {
 	// Http base client
 	httpClient := httpclient.NewClient(60 * time.Second)
 
-	ledgerService := application.NewLedgerService(cfg, store, httpClient)
+	ledgerService := application.NewLedgerService(cfg, store, redis, httpClient)
 
 	StartServer(ledgerService, cfg)
 }
