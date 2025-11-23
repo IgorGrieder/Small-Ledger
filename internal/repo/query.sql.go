@@ -105,7 +105,7 @@ func (q *Queries) GetAllTransactions(ctx context.Context) ([]Transaction, error)
 }
 
 const getUserFunds = `-- name: GetUserFunds :one
-SELECT SUM(entries.amount) as Funds from entries where account_id = $1
+SELECT COALESCE(SUM(entries.amount), 0)::BIGINT as Funds from entries where account_id = $1 FOR UPDATE
 `
 
 func (q *Queries) GetUserFunds(ctx context.Context, accountID uuid.UUID) (int64, error) {

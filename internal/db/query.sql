@@ -8,4 +8,4 @@ SELECT * from accounts;
 SELECT * from entries;
 
 -- name: GetUserFunds :one
-SELECT SUM(entries.amount) as Funds from entries where account_id = $1 FOR UPDATE;
+SELECT COALESCE(SUM(entries.amount), 0)::BIGINT as Funds from entries where account_id = $1 FOR UPDATE;

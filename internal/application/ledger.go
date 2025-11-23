@@ -93,24 +93,12 @@ func (l *LedgerService) checkFunds(ctx context.Context, tx *repo.Queries, transa
 
 	group, ctxGroup := errgroup.WithContext(ctxQuery)
 
-	fetchFunds := func(userID uuid.UUID, label string, dest *int64) error {
-		funds, err := tx.GetUserFunds(ctxGroup, userID)
-		if err != nil {
-			if errors.Is(err, pgx.ErrNoRows) {
-				return fmt.Errorf("user not found for %s=%s: %w", label, userID, err)
-			}
-			return fmt.Errorf("error consulting user %s=%s: %w", label, userID, err)
-		}
-		*dest = funds
-		return nil
-	}
-
 	group.Go(func() error {
-		return fetchFunds(transaction.From, "From", &fundsFrom)
+		return fetchFunds(tx, ctxGroup, transaction.From, "From", &fundsFrom)
 	})
 
 	group.Go(func() error {
-		return fetchFunds(transaction.To, "To", &fundsTo)
+		return fetchFunds(tx, ctxGroup, transaction.To, "To", &fundsTo)
 	})
 
 	if err := group.Wait(); err != nil {
@@ -124,8 +112,19 @@ func (l *LedgerService) checkFunds(ctx context.Context, tx *repo.Queries, transa
 	return nil
 }
 
+func fetchFunds(tx *repo.Queries, ctx context.Context, userID uuid.UUID, label string, dest *int64) error {
+	funds, err := tx.GetUserFunds(ctx, userID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return fmt.Errorf("user not found for %s=%s: %w", label, userID, err)
+		}
+		return fmt.Errorf("error consulting user %s=%s: %w", label, userID, err)
+	}
+	*dest = funds
+	return nil
+}
+
 func (l *LedgerService) checkCurrency(ctx context.Context, transaction *domain.Transaction) (conversionRates, error) {
-	// 1. Check Cache
 	val, err := l.redis.Get(ctx, transaction.Currency).Result()
 	if err == nil {
 		var cachedRates conversionRates
