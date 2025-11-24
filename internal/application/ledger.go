@@ -118,7 +118,7 @@ func fetchFunds(tx *repo.Queries, ctx context.Context, userID uuid.UUID, label s
 		if errors.Is(err, pgx.ErrNoRows) {
 			return fmt.Errorf("user not found for %s=%s: %w", label, userID, err)
 		}
-		return fmt.Errorf("error consulting user %s=%s: %w", label, userID, err)
+		return fmt.Errorf("error consulting user %s=%s: %v", label, userID, err)
 	}
 	*dest = funds
 	return nil

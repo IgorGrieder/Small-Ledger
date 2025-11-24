@@ -28,7 +28,6 @@ type CircuitBreaker struct {
 	openTimeout time.Duration
 }
 
-// NewCircuitBreaker creates a new circuit breaker with its thresholds
 func NewCircuitBreaker(maxFailures int, openTimeout time.Duration) *CircuitBreaker {
 	return &CircuitBreaker{
 		state:       StateClosed,
@@ -37,7 +36,6 @@ func NewCircuitBreaker(maxFailures int, openTimeout time.Duration) *CircuitBreak
 	}
 }
 
-// CheckBeforeRequest checks if a request is allowed to proceed
 func (cb *CircuitBreaker) CheckBeforeRequest() error {
 	cb.mu.Lock()
 	defer cb.mu.Unlock()

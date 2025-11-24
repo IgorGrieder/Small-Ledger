@@ -31,7 +31,7 @@ func main() {
 	defer redis.Close()
 
 	// Http base client
-	httpClient := httpclient.NewClient(60 * time.Second)
+	httpClient := httpclient.NewClient(60*time.Second, 5, 10*time.Second)
 
 	ledgerService := application.NewLedgerService(cfg, store, redis, httpClient)
 
